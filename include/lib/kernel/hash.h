@@ -71,30 +71,60 @@ struct hash_iterator {
 	struct hash_elem *elem;     /* Current hash element in current bucket. */
 };
 
-/* Basic life cycle. */
+/* 해시 테이블 초기하 및 제거 관련 */
+
+// 해시 테이블 초기화 함수
 bool hash_init (struct hash *, hash_hash_func *, hash_less_func *, void *aux);
+
+// 모든 요소 제거 함수
 void hash_clear (struct hash *, hash_action_func *);
+
+// 헤시 테이블 완전 삭제 및 메모리 반환 함수
 void hash_destroy (struct hash *, hash_action_func *);
 
-/* Search, insertion, deletion. */
+/* 검색, 삽입, 삭제 관련 */
+
+// 삽입 함수
 struct hash_elem *hash_insert (struct hash *, struct hash_elem *);
+
+// 삽입 + 교체 함수
 struct hash_elem *hash_replace (struct hash *, struct hash_elem *);
+
+// 검색 함수
 struct hash_elem *hash_find (struct hash *, struct hash_elem *);
+
+// 삭제 함수
 struct hash_elem *hash_delete (struct hash *, struct hash_elem *);
 
-/* Iteration. */
+/* 해시 테이블 순회 관련 */
 void hash_apply (struct hash *, hash_action_func *);
+
+// 해시 테이블 반복자 초기화 함수
 void hash_first (struct hash_iterator *, struct hash *);
+
+// 반복자를 통해 다음 요소를 반환하는 함수
 struct hash_elem *hash_next (struct hash_iterator *);
+
+// 현재 반복자가 가리키는 요소를 반환하는 함수
 struct hash_elem *hash_cur (struct hash_iterator *);
 
-/* Information. */
+/* 해시 테이블 상태 정보 */
+
+// 헤시 테이블에 있는 요소 수 반환 함수
 size_t hash_size (struct hash *);
+
+// 테이블이 비어 있는지 여부를 확인하는 함수
 bool hash_empty (struct hash *);
 
 /* Sample hash functions. */
+
+// 바이트 배열에 대한 해시값을 생성하는 함수
 uint64_t hash_bytes (const void *, size_t);
+
+// 문자열 해시 함수
 uint64_t hash_string (const char *);
+
+// 정수 해시 함수
 uint64_t hash_int (int);
 
 #endif /* lib/kernel/hash.h */

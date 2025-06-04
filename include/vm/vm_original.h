@@ -1,8 +1,9 @@
+// 오리지널
+
 #ifndef VM_VM_H
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
-#include <hash.h>
 
 enum vm_type {
 	/* page not initialized */
@@ -57,8 +58,6 @@ struct page {
 		struct page_cache page_cache;
 #endif
 	};
-
-	struct hash_elem hash_elem;
 };
 
 /* The representation of "frame" */
@@ -87,54 +86,28 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
-	struct hash hash;
 };
 
 #include "threads/thread.h"
-
-// SPT 초기화 함수
 void supplemental_page_table_init (struct supplemental_page_table *spt);
-
-// src 프로세스의 SPT를 dst로 복사하는 함수
 bool supplemental_page_table_copy (struct supplemental_page_table *dst,
 		struct supplemental_page_table *src);
-
-// SPT를 정리하고 메모리를 해제하는 함수.
 void supplemental_page_table_kill (struct supplemental_page_table *spt);
-
-// 사용자 가상 주소 va에 해당하는 페이지가 SPT에 등록되어 있는지 찾고, 있다면 truct page *를 반환하는 함수
 struct page *spt_find_page (struct supplemental_page_table *spt,
 		void *va);
-
-// 특정 페이지를 SPT에 삽입하는 함수
 bool spt_insert_page (struct supplemental_page_table *spt, struct page *page);
-
-// SPT에서 해당 페이지를 제거하고, 관련 리소스를 정리하는 함수
 void spt_remove_page (struct supplemental_page_table *spt, struct page *page);
 
-// 가상 메모리 서브시스템 전체를ㄹ 초기화하는 함수
 void vm_init (void);
-
-// 페이지 폴트 예외가 발생했을 때 이를 처리하려 시도하는 함수
 bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,
 		bool write, bool not_present);
 
-// 주어진 사용자 주소 upage에 대해 페이지를 할당함
 #define vm_alloc_page(type, upage, writable) \
 	vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
-
-// SPT에 새 페이지를 할당하면서, Lazy Initialization를 위한 초기 화자 정보를 함께 설정하는 함수.
 bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 		bool writable, vm_initializer *init, void *aux);
-
-// 물리 메모리 및 페이지를 해제하고 SPT에서도 제거하는 함수
 void vm_dealloc_page (struct page *page);
-
-
 bool vm_claim_page (void *va);
 enum vm_type page_get_type (struct page *page);
-
-uint64_t hash_func(const struct hash_elem *e, void *aux);
-bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 
 #endif  /* VM_VM_H */

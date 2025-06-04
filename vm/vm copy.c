@@ -1,3 +1,5 @@
+// 오리지널 파일
+
 /* vm.c: Generic interface for virtual memory objects. */
 
 #include "threads/malloc.h"
@@ -174,27 +176,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
-	hash_init (&spt->hash, hash_func, less_func, NULL);
 }
-
-uint64_t hash_func(const struct hash_elem *e, void *aux) {
-	struct page *page = hash_entry(e, struct page, hash_elem);
-
-	//hash_bytes(const void *buf_, size_t size);
-	return hash_bytes(&page->va, sizeof(page->va));
-
-}
-
-bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
-	struct page *page_1 = hash_entry(a, struct page, hash_elem);
-	struct page *page_2 = hash_entry(b, struct page, hash_elem);
-
-	//if(page_1->va > page_2->va) return page_1->va > page_2->va;
-	// -> 불필요
-
-	return page_1->va < page_2->va;
-}
-
 
 /* Copy supplemental page table from src to dst */
 bool
