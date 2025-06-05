@@ -63,7 +63,11 @@ struct page {
 
 /* The representation of "frame" */
 struct frame {
+
+	// 해당 프레임이 나타내는 물리 페이지에 접근하기 위한 커널 가상 주소
 	void *kva;
+
+	// 해당 프레임이 사용하는 struct page의 포인터 / 유저의 가상 페이지가 이 프레임을 통해 매핑됨
 	struct page *page;
 };
 

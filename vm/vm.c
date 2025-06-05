@@ -95,7 +95,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 	//hash_insert (struct hash *, struct hash_elem *)
 	
 	if(hash_insert(&spt->hash, &page->hash_elem) == NULL) succ = true;
-	
+
 	return succ;
 }
 
@@ -128,14 +128,42 @@ vm_evict_frame (void) {
  * and return it. This always return valid address. That is, if the user pool
  * memory is full, this function evicts the frame to get the available memory
  * space.*/
+
+// 사용자 공간 물리 프레임을 할당하고, 관리용 구조체까지 초기화하는 함수
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
-	/* TODO: Fill this function. */
 
-	ASSERT (frame != NULL);
-	ASSERT (frame->page == NULL);
-	return frame;
+	/*
+	
+	vm_get_frame()
+	│
+	├── 1. palloc_get_page(PALLOC_USER)로 물리 메모리 할당
+	│   └── 실패 시 PANIC("todo")
+	│
+	├── 2. struct frame * 구조체 동적 할당 (malloc)
+	│   └── 실패 시 PANIC("todo") or ASSERT
+	│
+	├── 3. frame 구조체 멤버 초기화
+	│    ├── frame->kva = palloc으로 받은 주소
+	│    └── frame->page = NULL (처음엔 비워둠)
+	│
+	└── 4. frame 반환
+
+	
+	*/
+
+	void *kva = palloc_get_page(PAL_USER);
+
+	// 페이지를 얻지 못했다면, 커널 중단
+	if(kva == NULL) PANIC("todo");
+
+	struct frame *f = malloc(sizeof(struct frame));
+	if(f == NULL) PANIC("todo");
+
+	f->kva = kva;
+	f->page = NULL;
+
+	return f;
 }
 
 /* Growing the stack. */
