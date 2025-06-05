@@ -45,6 +45,8 @@ struct page {
 	const struct page_operations *operations;
 	void *va;              /* Address in terms of user space */
 	struct frame *frame;   /* Back reference for frame */
+	struct hash_elem hash_elem;
+
 	/* Your implementation *ß/
 
 	/* Per-type data are binded into the union.
@@ -57,8 +59,6 @@ struct page {
 		struct page_cache page_cache;
 #endif
 	};
-
-	struct hash_elem hash_elem;
 };
 
 /* The representation of "frame" */
@@ -130,11 +130,16 @@ bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 // 물리 메모리 및 페이지를 해제하고 SPT에서도 제거하는 함수
 void vm_dealloc_page (struct page *page);
 
-
+// 해당 주소에 대한 페이지를 실제로 메모리에 로딩하여 사용할 수 있도록 하는 함수
 bool vm_claim_page (void *va);
+
+// 해당 페이지의 타입(익명, 파일 백업, stack 등)을 반환하는 함수
 enum vm_type page_get_type (struct page *page);
 
+// 인덱스 값을 계산하기 위한 함수
 uint64_t hash_func(const struct hash_elem *e, void *aux);
-bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+
+// 두 해시 요소를 순서 비교하는 함수
+bool hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 
 #endif  /* VM_VM_H */

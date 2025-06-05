@@ -1,9 +1,10 @@
+// 오리지널 파일
+
 /* vm.c: Generic interface for virtual memory objects. */
 
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
-#include "include/threads/vaddr.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -62,40 +63,21 @@ err:
 }
 
 /* Find VA from spt and return page. On error, return NULL. */
-
-// SPT에서 주어진 가상 주소 va에 해당하는 struct page를 검색하는 함수
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-
-	va = pg_round_down(va);
-	
-	struct page p;
-	p.va = va;
-
+	struct page *page = NULL;
 	/* TODO: Fill this function. */
 
-	//hash_find (struct hash *h, struct hash_elem *e)
-	struct hash_elem *e = hash_find(&spt->hash, &p.hash_elem);
-
-	if(e == NULL) return NULL;
-
-	return hash_entry(e, struct page, hash_elem);
+	return page;
 }
 
 /* Insert PAGE into spt with validation. */
-
-// SPT에 중복된 주소가 없을 경우에만 struct page를 삽입하는 함수
 bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
-	if(spt_find_page(spt, page->va) != NULL) return false;
 
-	//hash_insert (struct hash *, struct hash_elem *)
-	
-	if(hash_insert(&spt->hash, &page->hash_elem) == NULL) succ = true;
-	
 	return succ;
 }
 
@@ -194,27 +176,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
-	hash_init (&spt->hash, hash_func, hash_less, NULL);
 }
-
-uint64_t hash_func(const struct hash_elem *e, void *aux) {
-	struct page *page = hash_entry(e, struct page, hash_elem);
-
-	//hash_bytes(const void *buf_, size_t size);
-	return hash_bytes(&page->va, sizeof(page->va));
-
-}
-
-bool hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
-	struct page *page_1 = hash_entry(a, struct page, hash_elem);
-	struct page *page_2 = hash_entry(b, struct page, hash_elem);
-
-	//if(page_1->va > page_2->va) return page_1->va > page_2->va;
-	// -> 불필요
-
-	return page_1->va < page_2->va;
-}
-
 
 /* Copy supplemental page table from src to dst */
 bool
