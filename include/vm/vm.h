@@ -46,7 +46,7 @@ struct page {
 	void *va;              /* Address in terms of user space */
 	struct frame *frame;   /* Back reference for frame */
 	struct hash_elem hash_elem;
-
+	
 	/* Your implementation *ß/
 
 	/* Per-type data are binded into the union.
@@ -59,6 +59,14 @@ struct page {
 		struct page_cache page_cache;
 #endif
 	};
+};
+
+struct vm_load_arg
+{
+	struct file *file;
+	off_t ofs;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
 };
 
 /* The representation of "frame" */
@@ -145,5 +153,7 @@ uint64_t hash_func(const struct hash_elem *e, void *aux);
 
 // 두 해시 요소를 순서 비교하는 함수
 bool hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+
+void hash_page_destroy(struct hash_elem *e, void *aux);
 
 #endif  /* VM_VM_H */

@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "hash.h": "c"
+        "hash.h": "c",
+        "mmu.h": "c"
     }
 }

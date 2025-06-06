@@ -55,7 +55,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	/* Check wheter the upage is already occupied or not. */
 	if (spt_find_page (spt, upage) != NULL) return false;
 
-	struct page *new_page = (struct page *) malloc(sizeof(struct page));
+	struct page *new_page = calloc(1, sizeof(struct page));
 
 	if(new_page == NULL) return false;
 
@@ -204,18 +204,38 @@ bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 
-	if(addr == NULL || is_kernel_vaddr(addr)) return false;
+	// if(addr == NULL || is_kernel_vaddr(addr)) return false;
 
-	// SPT에서 해당 주소에 해당하는 페이지 검색
-	struct supplemental_page_table *spt = &thread_current()->spt;
-	struct page *page = spt_find_page(spt, addr);
-	if(page == NULL) return false;
+	// // SPT에서 해당 주소에 해당하는 페이지 검색
+	// struct supplemental_page_table *spt = &thread_current()->spt;
+	// struct page *page = spt_find_page(spt, addr);
+	// if(page == NULL) return false;
 
-	//  쓰기 권한 확인
-	if(write || !page->uninit.writable) return false;
+	// //  쓰기 권한 확인
+	// if(write || !page->uninit.writable) return false;
 
-	// 프레임 할당 및 페이지 초기화
-	return vm_do_claim_page (page);
+	// // 프레임 할당 및 페이지 초기화
+	// return vm_do_claim_page (page);
+
+	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
+    struct page *page = NULL;
+    if (addr == NULL)
+        return false;
+
+    if (is_kernel_vaddr(addr))
+        return false;
+
+    if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
+    {
+        /* TODO: Validate the fault */
+        page = spt_find_page(spt, addr);
+        if (page == NULL)
+            return false;
+        if (write == 1 && page->uninit.writable == 0) // write 불가능한 페이지에 write 요청한 경우
+            return false;
+        return vm_do_claim_page(page);
+    }
+    return false;
 }
 
 /* Free the page.
@@ -232,10 +252,11 @@ vm_claim_page (void *va UNUSED) {
 	/* TODO: Fill this function */
 	struct thread *curr = thread_current();
 	struct supplemental_page_table *spt = &curr->spt;
+	struct page *page = NULL;
 
 	void *rounded_va = pg_round_down(va); 
 
-	struct page *page = spt_find_page(spt, rounded_va);
+	page = spt_find_page(spt, rounded_va);
 	if(page == NULL) return false;
 	
 
@@ -275,9 +296,9 @@ vm_do_claim_page (struct page *page) {
 	struct thread *curr = thread_current();
 
 	//pml4_set_page (uint64_t *pml4, void *upage, void *kpage, bool rw)
-	bool sucess = pml4_set_page(curr->pml4, page->va, frame->kva, true);
+	pml4_set_page(curr->pml4, page->va, frame->kva, page->uninit.writable);
 
-	return sucess;
+	return swap_in(page, frame->kva);
 }
 
 /* Initialize new supplemental page table */
