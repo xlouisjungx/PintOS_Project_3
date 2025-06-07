@@ -52,6 +52,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
+	void *va =pg_round_down(upage);
+
 	/* Check wheter the upage is already occupied or not. */
 	if (spt_find_page (spt, upage) != NULL) return false;
 

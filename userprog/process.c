@@ -18,9 +18,9 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
-//#ifdef VM
+#ifdef VM
 #include "vm/vm.h"
-//#endif
+#endif
 
 /* process_wait를 위한 sema*/
 #include "threads/synch.h"
@@ -618,6 +618,7 @@ load(const char *file_name, struct intr_frame *if_)
 					read_bytes = 0;
 					zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
 				}
+				
 				if (!load_segment(file, file_page, (void *)mem_page,
 								  read_bytes, zero_bytes, writable))
 					goto done;
@@ -628,6 +629,7 @@ load(const char *file_name, struct intr_frame *if_)
 		}
 	}
 	/* Set up stack. */
+	
 	if (!setup_stack(if_))
 		goto done;
 
@@ -841,6 +843,7 @@ lazy_load_segment(struct page *page, void *aux)
 	size_t page_read_bytes = aux_p->read_bytes;
 	size_t page_zero_bytes = aux_p->zero_bytes;
 
+	
 	file_seek(file, offset);
 	if(file_read(file, page->frame->kva, page_read_bytes) != (int)page_read_bytes) {
 		return false;
@@ -879,27 +882,26 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		aux->ofs = ofs;
 		aux->read_bytes = page_read_bytes;
 		aux->zero_bytes = page_zero_bytes;
-
+		
+		
 		// 페이지 등록 (실제 로드는 lazy_load_segment에서 처리됨)
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable, lazy_load_segment, aux)) {
 			free(aux);
 			return false;
 		}
-
+		
 		ofs += page_read_bytes;
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
 	}
+	return true;
 }
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool
 setup_stack(struct intr_frame *if_)
 {
-	bool success = false;
-	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
-
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
@@ -918,3 +920,4 @@ setup_stack(struct intr_frame *if_)
 	return success;
 }
 #endif /* VM */
+ 
