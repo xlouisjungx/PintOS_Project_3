@@ -190,8 +190,21 @@ vm_get_frame (void) {
 }
 
 /* Growing the stack. */
+
+// fault가 발생한 유저 스택 주소(addr)가 유효해지도록 새로운 페이지 할당
 static void
 vm_stack_growth (void *addr UNUSED) {
+	// 1. 페이지 경계로 내림
+	addr = pg_round_down(addr);
+
+	// 2. SPT에 해당 주소가 이미 등록되어 있는지 확인
+	if(spt_find_page(&thread_current()->spt, addr) != NULL) return;
+
+	// 3. SPT에 익명 페이지로 등록 (lazy allocation)
+	bool success = vm_alloc_page_with_initializer(VM_ANON, addr, true, NULL, NULL);
+
+	// 4. 바로 물리 프레임 할당 및 매핑 (Claim)
+	if(success) vm_claim_page(addr);
 }
 
 /* Handle the fault on write_protected page */
@@ -206,19 +219,6 @@ bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 
-	// if(addr == NULL || is_kernel_vaddr(addr)) return false;
-
-	// // SPT에서 해당 주소에 해당하는 페이지 검색
-	// struct supplemental_page_table *spt = &thread_current()->spt;
-	// struct page *page = spt_find_page(spt, addr);
-	// if(page == NULL) return false;
-
-	// //  쓰기 권한 확인
-	// if(write || !page->uninit.writable) return false;
-
-	// // 프레임 할당 및 페이지 초기화
-	// return vm_do_claim_page (page);
-
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
     struct page *page = NULL;
     if (addr == NULL)
@@ -226,15 +226,37 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
     if (is_kernel_vaddr(addr))
         return false;
-
+	
     if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
     {
-        /* TODO: Validate the fault */
+	
+		//현재 스택
+		void *rsp = user ? f->rsp : thread_current()->stack_pointer;
+
+		/*
+		
+		왜 -32를 붙여줘야 하는가?
+		-> x86_64 ABI에서는 함수 호출 시 최소 32바이트 이상의 공간을 미리 확보를 해야한다고 함.
+
+		addr >= rsp - 32
+		-> 페이지 폴트가 발생한 주소 addr이 현재 스택 포인터보다 너무 멀리 떨어져 있지 않아야 한다!
+		
+		*/
+
+		void *stack_bottom_limit = USER_STACK - MAX_STACK_SIZE;
+
+		if(addr >= rsp - 32 && addr >= stack_bottom_limit ) {
+			vm_stack_growth(pg_round_down(addr));
+			return true;
+		}
+
+        // /* TODO: Validate the fault */
         page = spt_find_page(spt, addr);
         if (page == NULL)
             return false;
         if (write == 1 && page->uninit.writable == 0) // write 불가능한 페이지에 write 요청한 경우
             return false;
+
         return vm_do_claim_page(page);
     }
     return false;
