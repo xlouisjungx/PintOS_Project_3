@@ -74,7 +74,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	}
 
 	uninit_new(new_page, upage, init, type, aux, page_initializer);
-	new_page->uninit.writable = writable;
+	new_page->writable = writable;
 	
 	if(!spt_insert_page(spt, new_page)) {
 		free(new_page);
@@ -125,7 +125,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 	vm_dealloc_page (page);
-	return true;
+	return ;
 }
 
 /* Get the struct frame, that will be evicted. */
@@ -196,15 +196,18 @@ static void
 vm_stack_growth (void *addr UNUSED) {
 	// 1. 페이지 경계로 내림
 	addr = pg_round_down(addr);
+	struct supplemental_page_table *spt = &thread_current()->spt;
 
 	// 2. SPT에 해당 주소가 이미 등록되어 있는지 확인
-	if(spt_find_page(&thread_current()->spt, addr) != NULL) return;
+	if(spt_find_page(spt, addr) != NULL) return;
 
 	// 3. SPT에 익명 페이지로 등록 (lazy allocation)
-	bool success = vm_alloc_page_with_initializer(VM_ANON, addr, true, NULL, NULL);
+	//bool success = vm_alloc_page_with_initializer(VM_ANON, addr, true, NULL, NULL);
 
 	// 4. 바로 물리 프레임 할당 및 매핑 (Claim)
-	if(success) vm_claim_page(addr);
+	//if(success) vm_claim_page(addr);
+
+	if(vm_alloc_page_with_initializer(VM_ANON, addr, true, NULL, NULL)) vm_claim_page(addr);
 }
 
 /* Handle the fault on write_protected page */
@@ -220,45 +223,33 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-    struct page *page = NULL;
-    if (addr == NULL)
-        return false;
+    struct page *page = spt_find_page(spt, addr);
 
-    if (is_kernel_vaddr(addr))
+	//현재 스택
+	void *rsp = user ? f->rsp : thread_current()->stack_pointer;
+	void *stack_bottom_limit = USER_STACK - MAX_STACK_SIZE;
+
+    if (is_kernel_vaddr(addr) || addr == NULL)
         return false;
 	
-    if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
+	if(!not_present) return false;
+
+	// 이미 등록된 페이지라면?
+    if (page != NULL)
     {
-	
-		//현재 스택
-		void *rsp = user ? f->rsp : thread_current()->stack_pointer;
-
-		/*
-		
-		왜 -32를 붙여줘야 하는가?
-		-> x86_64 ABI에서는 함수 호출 시 최소 32바이트 이상의 공간을 미리 확보를 해야한다고 함.
-
-		addr >= rsp - 32
-		-> 페이지 폴트가 발생한 주소 addr이 현재 스택 포인터보다 너무 멀리 떨어져 있지 않아야 한다!
-		
-		*/
-
-		void *stack_bottom_limit = USER_STACK - MAX_STACK_SIZE;
-
-		if(addr >= rsp - 32 && addr >= stack_bottom_limit ) {
-			vm_stack_growth(pg_round_down(addr));
-			return true;
-		}
-
         // /* TODO: Validate the fault */
-        page = spt_find_page(spt, addr);
-        if (page == NULL)
-            return false;
-        if (write == 1 && page->uninit.writable == 0) // write 불가능한 페이지에 write 요청한 경우
+        
+        if (write && page->operations->type == VM_UNINIT && !page->writable) // write 불가능한 페이지에 write 요청한 경우
             return false;
 
         return vm_do_claim_page(page);
     }
+
+	if(addr >= rsp - 32 && addr >= stack_bottom_limit && addr < USER_STACK) {
+		vm_stack_growth(pg_round_down(addr));
+		return true;
+	}
+
     return false;
 }
 
@@ -315,12 +306,19 @@ vm_do_claim_page (struct page *page) {
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
-
+  
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	struct thread *curr = thread_current();
 
 	//pml4_set_page (uint64_t *pml4, void *upage, void *kpage, bool rw)
-	pml4_set_page(curr->pml4, page->va, frame->kva, page->uninit.writable);
+	// pml4_set_page(curr->pml4, page->va, frame->kva, page->uninit.writable);
+
+	// return swap_in(page, frame->kva);
+	if(!pml4_set_page(curr->pml4, page->va, frame->kva, page->writable)) {
+		palloc_free_page(frame->kva);
+		free(frame);
+		return false;
+	}
 
 	return swap_in(page, frame->kva);
 }
@@ -367,14 +365,14 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 			vm_alloc_page_with_initializer(
 				src_page->uninit.type,
 				src_page->va,
-				src_page->uninit.writable,
+				src_page->writable,
 				src_page->uninit.init,
 				src_page->uninit.aux
 			);
 		}
 
 		else {
-			if(vm_alloc_page(src_type, src_page->va, src_page->uninit.writable) && vm_claim_page(src_page->va)) {
+			if(vm_alloc_page(src_type, src_page->va, src_page->writable) && vm_claim_page(src_page->va)) {
 				struct page *dst_page = spt_find_page(dst, src_page->va);
 				memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
 			}
