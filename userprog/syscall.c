@@ -74,6 +74,10 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	// printf("system call!\n");
 	// thread_exit();
 
+	#ifdef VM
+    thread_current()->stack_pointer = f->rsp;
+	#endif
+
 	int syscall_num = (int)f->R.rax;
 
 	switch (syscall_num)
