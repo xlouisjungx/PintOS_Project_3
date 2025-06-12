@@ -5,7 +5,9 @@
         "debug.h": "c",
         "exception.h": "c",
         "file.h": "c",
-        "input.h": "c"
+        "input.h": "c",
+        "thread.h": "c",
+        "*.inc": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

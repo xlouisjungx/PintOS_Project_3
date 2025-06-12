@@ -89,7 +89,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 // SPT에서 주어진 가상 주소 va에 해당하는 struct page를 검색하는 함수
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-
+	lock_acquire(&spt->spt_lock);
 	va = pg_round_down(va);
 	
 	struct page p;
@@ -99,7 +99,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 
 	//hash_find (struct hash *h, struct hash_elem *e)
 	struct hash_elem *e = hash_find(&spt->hash, &p.hash_elem);
-
+	lock_release(&spt->spt_lock);
 	if(e == NULL) return NULL;
 
 	return hash_entry(e, struct page, hash_elem);
@@ -239,7 +239,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
     {
         // /* TODO: Validate the fault */
         
-        if (write && page->operations->type == VM_UNINIT && !page->writable) // write 불가능한 페이지에 write 요청한 경우
+        if (write && !page->writable) // write 불가능한 페이지에 write 요청한 경우
             return false;
 
         return vm_do_claim_page(page);
@@ -327,6 +327,7 @@ vm_do_claim_page (struct page *page) {
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 	hash_init (&spt->hash, hash_func, hash_less, NULL);
+	lock_init(&spt->spt_lock);
 }
 
 uint64_t hash_func(const struct hash_elem *e, void *aux) {

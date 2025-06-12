@@ -73,12 +73,13 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	// TODO: Your implementation goes here.
 	// printf("system call!\n");
 	// thread_exit();
+	
+
+	int syscall_num = (int)f->R.rax;
 
 	#ifdef VM
     thread_current()->stack_pointer = f->rsp;
 	#endif
-
-	int syscall_num = (int)f->R.rax;
 
 	switch (syscall_num)
 	{
@@ -166,9 +167,29 @@ void syscall_handler(struct intr_frame *f UNUSED)
 			f->R.rax = 0;
 			break;
 		}
+		
+		
+		#ifdef VM
+
+		/*
+		
+		buffer가 가리키는 전체 사용자 메모리 영역이 유효한지 검사한다.
+		해당 페이지가 물리 메모리와 매핑되어있지 않다면 vm_try_handle_fault()로 페이지를 로드, 혹은
+		stack_grow를 한다.
+
+		*/
+		uint8_t *ptr = buffer;
+		for (unsigned i = 0; i < size; ) {
+			if (!vm_try_handle_fault(f, ptr + i, true, false, true)) {
+				sys_exit(-1);
+			}
+			i += PGSIZE - pg_ofs(ptr + i);  // 페이지 경계 기준으로 넘김
+		}
+		#endif
 		check_user_address(buffer);
 		check_user_buffer(buffer, size);
-
+		
+		
 		f->R.rax = sys_read(fd, buffer, size);
 
 		break;
@@ -294,6 +315,7 @@ void check_user_address(const void *uaddr)
 {
 	if (!uaddr || !is_user_vaddr(uaddr) || pml4_get_page(thread_current()->pml4, uaddr) == NULL)
 	{
+		//printf("check_user_address: invalid addr %p, thread tid=%d\n", uaddr, thread_current()->tid);
 		sys_exit(-1);
 	}
 }
@@ -322,6 +344,18 @@ void check_user_buffer(char *buffer, size_t size)
 		size_t left = PGSIZE - pg_ofs(addr); // 이 주소가 속한 페이지의 남은 바이트 수 계산
 		ofs += left;						 // 한번 검사한 영역 만큼 오프셋 건너뛰기
 	}
+
+	// if (size == 0) return;
+
+	// uint8_t *start = (uint8_t *)buffer;
+	// uint8_t *end = start + size;
+	
+	// while (start < end)
+	// {
+	// 	check_user_address(start);
+	// 	// 현재 주소가 속한 페이지의 끝까지 건너뛰기
+	// 	start += PGSIZE - pg_ofs(start);
+	// }
 }
 
 /* thread 종료를 위한 sys_exit()*/

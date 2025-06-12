@@ -150,6 +150,7 @@ off_t file_read(struct file *file, void *buffer, off_t size)
 	}
 
 	off_t bytes_read = inode_read_at(file->inode, buffer, size, file->pos);
+	//printf("file_read: inode_read_at read %d bytes at pos %d\n", bytes_read, file->pos);
 	file->pos += bytes_read;
 	lock_release(&filesys_lock);
 

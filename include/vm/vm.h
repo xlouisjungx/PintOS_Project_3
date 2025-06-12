@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "threads/palloc.h"
 #include <hash.h>
+#include "threads/synch.h"
 
 enum vm_type {
 	/* page not initialized */
@@ -45,7 +46,7 @@ struct page {
 	const struct page_operations *operations;
 	void *va;              /* Address in terms of user space */
 	struct frame *frame;   /* Back reference for frame */
-	struct hash_elem hash_elem;
+	
 	
 	bool writable;
 
@@ -61,6 +62,7 @@ struct page {
 		struct page_cache page_cache;
 #endif
 	};
+	struct hash_elem hash_elem;
 };
 
 struct vm_load_arg
@@ -102,6 +104,7 @@ struct page_operations {
  * All designs up to you for this. */
 struct supplemental_page_table {
 	struct hash hash;
+	struct lock spt_lock;
 };
 
 #include "threads/thread.h"
